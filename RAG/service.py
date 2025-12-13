@@ -1,7 +1,7 @@
 """
 Service RAG : (1) retrieval -> (2) construction du prompt -> (3) génération LLM -> (4) retour réponse + sources
 """
-
+'''
 from rag.retrieval import retrieve_context
 from llm.ollama_client import generate
 
@@ -47,7 +47,10 @@ def answer_with_rag(question: str, k: int = 5) -> dict:
             seen.add(s)
 
     return {
-        "answer": answer,
-        "sources": sources,
+        "answer": answer                            ,
+        "sources": sources,                                         
         "contexts": contexts
     }
+
+
+'''

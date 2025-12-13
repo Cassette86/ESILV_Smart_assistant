@@ -1,3 +1,4 @@
+'''
 from rag.service import answer_with_rag
 
 if __name__ == "__main__":
@@ -14,3 +15,5 @@ if __name__ == "__main__":
         print("\n--- SOURCES ---")
         for s in res["sources"]:
             print("-", s)
+
+'''
