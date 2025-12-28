@@ -6,3 +6,14 @@ venv/
 .env
 .ipynb_checkpoints/
 .venv/
+# Ignore les fichiers générés automatiquement
+data/processed/
+data/chunks.jsonl
+data/index/
+
+# Ignore les cache Python
+__pycache__/
+*.pyc
+
+# Ignore les fichiers lourds ou temporaires
+.ipynb_checkpoints/
