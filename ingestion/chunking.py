@@ -1,5 +1,5 @@
 """
-ETAPE 1 - GENERATION DES CHUNKS POUR LE RAG
+ETAPE 2 - GENERATION DES CHUNKS POUR LE RAG
 -------------------------------------------
 
 Ce script constitue la deuxième partie de l’étape d’ingestion des données
@@ -79,7 +79,7 @@ def create_chunks(text, source):
 
     return chunks
 
-def main():
+def build_chunks():
     with open(OUTPUT_FILE, "w", encoding="utf-8") as out:
         for filename in os.listdir(PROCESSED_DIR):
             if filename.endswith(".txt"):
@@ -98,4 +98,4 @@ def main():
                 print(f"[OK] {filename} done.")
 
 if __name__ == "__main__":
-    main()
+    build_chunks()

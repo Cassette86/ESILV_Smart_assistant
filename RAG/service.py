@@ -1,8 +1,8 @@
 """
 Service RAG : (1) retrieval -> (2) construction du prompt -> (3) génération LLM -> (4) retour réponse + sources
 """
-'''
-from rag.retrieval import retrieve_context
+
+from rag.retrieval import retrieve_chunks
 from llm.ollama_client import generate
 
 
@@ -33,7 +33,7 @@ RÉPONSE :
 
 
 def answer_with_rag(question: str, k: int = 5) -> dict:
-    contexts = retrieve_context(question, k=k)
+    contexts = retrieve_chunks(question, k=k)
     prompt = build_prompt(question, contexts)
     answer = generate(prompt)
 
@@ -53,4 +53,3 @@ def answer_with_rag(question: str, k: int = 5) -> dict:
     }
 
 
-'''

@@ -1,56 +1,50 @@
-"""
-Module de retrieval : interroge l'index Chroma (data/index) et renvoie les chunks pertinents.
-"""
-
+from pathlib import Path
 import chromadb
 from chromadb.utils import embedding_functions
 
-INDEX_DIR = "data/index"
-COLLECTION_NAME = "esilv_rag"
+# ===== chemins =====
+BASE_DIR = Path(__file__).resolve().parent.parent
+CHROMA_DIR = BASE_DIR / "data" / "chroma"
+COLLECTION_NAME = "esilv_docs"
+
+# ===== embedding model (DOIT matcher l’indexation) =====
+EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+
+# ===== init Chroma client & collection =====
+embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
+    model_name=EMBEDDING_MODEL
+)
+
+client = chromadb.PersistentClient(
+    path=str(CHROMA_DIR)
+)
+
+collection = client.get_or_create_collection(
+    name=COLLECTION_NAME,
+    embedding_function=embedding_fn
+)
 
 
-def _get_embedding_function():
+def retrieve_chunks(question: str, k: int = 5):
     """
-    On utilise l'embedding ONNX MiniLM (celui que Chroma a téléchargé chez toi).
-    On garde un fallback "DefaultEmbeddingFunction" si besoin.
+    Retrieval ChromaDB pour le RAG
     """
-    try:
-        return embedding_functions.ONNXMiniLM_L6_V2()
-    except Exception:
-        return embedding_functions.DefaultEmbeddingFunction()
-
-
-def get_collection():
-    client = chromadb.PersistentClient(path=INDEX_DIR)
-    emb_fn = _get_embedding_function()
-
-    # Important : fournir la même embedding_function que celle utilisée pour requêter par texte.
-    return client.get_or_create_collection(
-        name=COLLECTION_NAME,
-        embedding_function=emb_fn
-    )
-
-
-def retrieve_context(question: str, k: int = 5):
-    """
-    Retourne une liste de passages (chunks) + leurs métadonnées.
-    """
-    col = get_collection()
-    res = col.query(
+    results = collection.query(
         query_texts=[question],
-        n_results=k,
-        include=["documents", "metadatas", "distances"]
+        n_results=k
     )
-
-    docs = res["documents"][0]
-    metas = res["metadatas"][0]
-    dists = res["distances"][0]
 
     contexts = []
-    for doc, meta, dist in zip(docs, metas, dists):
+
+    documents = results.get("documents", [[]])[0]
+    metadatas = results.get("metadatas", [[]])[0]
+    distances = results.get("distances", [[]])[0]
+
+    for text, meta, dist in zip(documents, metadatas, distances):
         contexts.append({
-            "text": doc,
+            "text": text,
             "source": meta.get("source", "unknown"),
-            "distance": dist
+            "distance": float(dist)
         })
+
     return contexts
