@@ -16,25 +16,37 @@ def log_interaction(
 
     ts = datetime.now()
 
+    similarities = rag_results.get("similarities", [])
+    sources = rag_results.get("sources", [])
+
+    # --- SAFE METRICS ---
+    similarity_count = len(similarities)
+    max_similarity = max(similarities) if similarities else None
+    avg_similarity = (
+        sum(similarities) / similarity_count
+        if similarity_count > 0
+        else None
+    )
+
     cur.execute("""
         INSERT INTO interactions VALUES (
             NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
     """, (
-        ts,
-        ts.isocalendar()[1],
-        ts.month,
+        ts,                         # timestamp
+        ts.isocalendar()[1],        # week
+        ts.month,                   # month
         user_id,
         session_id,
         query,
         len(query),
         theme,
-        max(rag_results["similarities"]),
-        len(rag_results["similarities"]),
-        sum(rag_results["similarities"]) / len(rag_results["similarities"]),
-        max(rag_results["similarities"]),
+        max_similarity,             # SAFE
+        similarity_count,
+        avg_similarity,             # SAFE
+        max_similarity,             # SAFE (si tu veux la garder deux fois)
         len(response),
-        ",".join(rag_results["sources"]),
+        ",".join(sources) if sources else None,
         email_clicked,
         conversion
     ))

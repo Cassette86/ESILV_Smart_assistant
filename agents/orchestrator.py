@@ -7,11 +7,13 @@ def detect_intent(user_input: str) -> str:
         return "contact"
 
     if any(k in text for k in [
-        "?", "comment", "quand", "où", "quel", "quelle"
+        "?", "comment", "quand", "où", "quel", "quelle",
+        "décris", "explique", "présente", "c'est quoi", "qui est"
     ]):
         return "rag"
 
     return "clarification"
+
 
 
 def orchestrate(user_input: str, state: dict) -> dict:

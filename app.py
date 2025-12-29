@@ -127,6 +127,8 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+
+
 if st.session_state.mode == "chat":
     if st.button("📩 Je souhaite être recontacté"):
         st.session_state.mode = "contact"
@@ -267,3 +269,9 @@ def show_contact_form():
             st.success("Votre demande a bien été envoyée. Nous vous recontacterons.")
             st.session_state.mode = "chat"
             st.rerun()
+
+# ================== MAIN ROUTER ==================
+if st.session_state.mode == "chat":
+    show_chat()
+elif st.session_state.mode == "contact":
+    show_contact_form()
