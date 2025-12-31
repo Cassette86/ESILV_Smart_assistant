@@ -35,3 +35,33 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+def init_leads_table():
+    conn = get_db()
+    cur = conn.cursor()
+
+    # création de la table (nouvelle DB)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS leads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT NOT NULL,
+            user_id TEXT,
+            first_name TEXT NOT NULL,
+            last_name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            study_level TEXT,
+            interests TEXT,
+            consent INTEGER NOT NULL,
+            newsletter INTEGER DEFAULT 0
+        )
+    """)
+
+    # migration : ajout user_id si table déjà existante
+    cur.execute("PRAGMA table_info(leads)")
+    columns = [row[1] for row in cur.fetchall()]
+
+    if "user_id" not in columns:
+        cur.execute("ALTER TABLE leads ADD COLUMN user_id TEXT")
+
+    conn.commit()
+    conn.close()

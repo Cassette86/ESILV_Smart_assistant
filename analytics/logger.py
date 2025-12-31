@@ -19,14 +19,14 @@ def log_interaction(
     similarities = rag_results.get("similarities", [])
     sources = rag_results.get("sources", [])
 
-    # --- SAFE METRICS ---
-    similarity_count = len(similarities)
+    retrieved_docs = len(sources) if sources else 0
+
     max_similarity = max(similarities) if similarities else None
     avg_similarity = (
-        sum(similarities) / similarity_count
-        if similarity_count > 0
-        else None
+        sum(similarities) / len(similarities)
+        if similarities else None
     )
+    confidence_score = max_similarity
 
     cur.execute("""
         INSERT INTO interactions VALUES (
@@ -41,10 +41,10 @@ def log_interaction(
         query,
         len(query),
         theme,
-        max_similarity,             # SAFE
-        similarity_count,
-        avg_similarity,             # SAFE
-        max_similarity,             # SAFE (si tu veux la garder deux fois)
+        confidence_score,
+        retrieved_docs,
+        avg_similarity,
+        max_similarity,          # SAFE (si tu veux la garder deux fois)
         len(response),
         ",".join(sources) if sources else None,
         email_clicked,

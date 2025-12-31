@@ -1,27 +1,35 @@
 from analytics.db import get_db
-from datetime import datetime
 
 # =========================================================
-# Helpers
+# Helpers – filtres temporels
 # =========================================================
 
 def _period_filter(period: str):
-    """
-    Returns SQL WHERE clause fragment based on selected period
-    """
     if period == "weekly":
-        return "WHERE timestamp >= date('now', '-7 days')"
+        return "timestamp >= date('now', '-7 days')"
     if period == "monthly":
-        return "WHERE timestamp >= date('now', '-30 days')"
+        return "timestamp >= date('now', '-30 days')"
     if period == "quarterly":
-        return "WHERE timestamp >= date('now', '-90 days')"
+        return "timestamp >= date('now', '-90 days')"
     if period == "yearly":
-        return "WHERE timestamp >= date('now', '-365 days')"
-    return ""
+        return "timestamp >= date('now', '-365 days')"
+    return "1=1"
+
+
+def _previous_period(period: str):
+    if period == "weekly":
+        return "timestamp BETWEEN date('now', '-14 days') AND date('now', '-7 days')"
+    if period == "monthly":
+        return "timestamp BETWEEN date('now', '-60 days') AND date('now', '-30 days')"
+    if period == "quarterly":
+        return "timestamp BETWEEN date('now', '-180 days') AND date('now', '-90 days')"
+    if period == "yearly":
+        return "timestamp BETWEEN date('now', '-730 days') AND date('now', '-365 days')"
+    return "1=1"
 
 
 # =========================================================
-# KPI COUNTERS (Top cards)
+# KPI COUNTERS (sans variation)
 # =========================================================
 
 def users_count(period):
@@ -30,7 +38,7 @@ def users_count(period):
     cur.execute(f"""
         SELECT COUNT(DISTINCT user_id)
         FROM interactions
-        {_period_filter(period)}
+        WHERE {_period_filter(period)}
     """)
     value = cur.fetchone()[0]
     conn.close()
@@ -43,7 +51,7 @@ def queries_count(period):
     cur.execute(f"""
         SELECT COUNT(*)
         FROM interactions
-        {_period_filter(period)}
+        WHERE {_period_filter(period)}
     """)
     value = cur.fetchone()[0]
     conn.close()
@@ -56,7 +64,7 @@ def sessions_count(period):
     cur.execute(f"""
         SELECT COUNT(DISTINCT session_id)
         FROM interactions
-        {_period_filter(period)}
+        WHERE {_period_filter(period)}
     """)
     value = cur.fetchone()[0]
     conn.close()
@@ -69,7 +77,7 @@ def emails_count(period):
     cur.execute(f"""
         SELECT COUNT(*)
         FROM interactions
-        {_period_filter(period)}
+        WHERE {_period_filter(period)}
         AND email_clicked = 1
     """)
     value = cur.fetchone()[0]
@@ -83,7 +91,7 @@ def conversions_count(period):
     cur.execute(f"""
         SELECT COUNT(*)
         FROM interactions
-        {_period_filter(period)}
+        WHERE {_period_filter(period)}
         AND conversion = 1
     """)
     value = cur.fetchone()[0]
@@ -92,16 +100,16 @@ def conversions_count(period):
 
 
 # =========================================================
-# QUERIES THEME
+# QUERIES BY THEME
 # =========================================================
 
 def queries_by_theme(period):
     conn = get_db()
     cur = conn.cursor()
     cur.execute(f"""
-        SELECT theme, COUNT(*) as count
+        SELECT theme, COUNT(*) AS count
         FROM interactions
-        {_period_filter(period)}
+        WHERE {_period_filter(period)}
         GROUP BY theme
         ORDER BY count DESC
     """)
@@ -128,17 +136,15 @@ def usage_over_time(period):
         group_by = "date(timestamp)"
 
     cur.execute(f"""
-        SELECT {group_by} as time_unit, COUNT(*)
+        SELECT {group_by} AS time_unit, COUNT(*)
         FROM interactions
-        {_period_filter(period)}
+        WHERE {_period_filter(period)}
         GROUP BY time_unit
         ORDER BY time_unit
     """)
 
     rows = cur.fetchall()
     conn.close()
-
-    # Streamlit-friendly format
     return {row[0]: row[1] for row in rows}
 
 
@@ -152,7 +158,7 @@ def coverage_score(period):
     cur.execute(f"""
         SELECT AVG(max_similarity)
         FROM interactions
-        {_period_filter(period)}
+        WHERE {_period_filter(period)}
     """)
     value = cur.fetchone()[0]
     conn.close()
@@ -163,9 +169,9 @@ def top_used_documents(period, limit=5):
     conn = get_db()
     cur = conn.cursor()
     cur.execute(f"""
-        SELECT used_sources, COUNT(*) as count
+        SELECT used_sources, COUNT(*) AS count
         FROM interactions
-        {_period_filter(period)}
+        WHERE {_period_filter(period)}
         GROUP BY used_sources
         ORDER BY count DESC
         LIMIT ?
@@ -179,9 +185,9 @@ def underused_documents(period, limit=5):
     conn = get_db()
     cur = conn.cursor()
     cur.execute(f"""
-        SELECT used_sources, COUNT(*) as count
+        SELECT used_sources, COUNT(*) AS count
         FROM interactions
-        {_period_filter(period)}
+        WHERE {_period_filter(period)}
         GROUP BY used_sources
         ORDER BY count ASC
         LIMIT ?
@@ -190,43 +196,47 @@ def underused_documents(period, limit=5):
     conn.close()
     return [row[0] for row in rows]
 
-# ======================Variations ====================================
 
-def _previous_period(period: str):
-    if period == "weekly":
-        return "WHERE timestamp BETWEEN date('now', '-14 days') AND date('now', '-7 days')"
-    if period == "monthly":
-        return "WHERE timestamp BETWEEN date('now', '-60 days') AND date('now', '-30 days')"
-    if period == "quarterly":
-        return "WHERE timestamp BETWEEN date('now', '-180 days') AND date('now', '-90 days')"
-    if period == "yearly":
-        return "WHERE timestamp BETWEEN date('now', '-730 days') AND date('now', '-365 days')"
-    return ""
+# =========================================================
+# KPI AVEC VARIATION (Δ) – VERSION ROBUSTE
+# =========================================================
 
 def metric_with_variation(
-    query_sql: str,
-    period="weekly"
+    base_query: str,
+    period="weekly",
+    extra_condition: str | None = None
 ):
     conn = get_db()
     cur = conn.cursor()
 
-    # valeur actuelle
+    # ----- période actuelle
+    conditions_now = [_period_filter(period)]
+    if extra_condition:
+        conditions_now.append(extra_condition)
+
+    where_now = " AND ".join(conditions_now)
+
     cur.execute(f"""
-        {query_sql}
-        {_period_filter(period)}
+        {base_query}
+        WHERE {where_now}
     """)
     current = cur.fetchone()[0] or 0
 
-    # valeur précédente
+    # ----- période précédente
+    conditions_prev = [_previous_period(period)]
+    if extra_condition:
+        conditions_prev.append(extra_condition)
+
+    where_prev = " AND ".join(conditions_prev)
+
     cur.execute(f"""
-        {query_sql}
-        {_previous_period(period)}
+        {base_query}
+        WHERE {where_prev}
     """)
     previous = cur.fetchone()[0] or 0
 
     conn.close()
 
-    # calcul variation
     if previous == 0:
         variation = None
     else:
@@ -234,11 +244,17 @@ def metric_with_variation(
 
     return current, variation
 
+
+# =========================================================
+# KPI AVEC VARIATION – APPELS
+# =========================================================
+
 def users_kpi(period="weekly"):
     return metric_with_variation(
         "SELECT COUNT(DISTINCT user_id) FROM interactions",
         period
     )
+
 
 def queries_kpi(period="weekly"):
     return metric_with_variation(
@@ -246,20 +262,25 @@ def queries_kpi(period="weekly"):
         period
     )
 
+
 def sessions_kpi(period="weekly"):
     return metric_with_variation(
         "SELECT COUNT(DISTINCT session_id) FROM interactions",
         period
     )
 
+
 def emails_kpi(period="weekly"):
     return metric_with_variation(
-        "SELECT COUNT(*) FROM interactions WHERE email_clicked = 1",
-        period
+        "SELECT COUNT(*) FROM interactions",
+        period,
+        extra_condition="email_clicked = 1"
     )
+
 
 def conversions_kpi(period="weekly"):
     return metric_with_variation(
-        "SELECT COUNT(*) FROM interactions WHERE conversion = 1",
-        period
+        "SELECT COUNT(*) FROM interactions",
+        period,
+        extra_condition="conversion = 1"
     )

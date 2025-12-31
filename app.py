@@ -3,13 +3,14 @@ import base64 # for image encoding
 from rag.service import answer_with_rag
 import uuid
 #================== ANALYTICS ==================
-from analytics.db import init_db
+from analytics.db import init_db, init_leads_table
 from analytics.logger import log_interaction
 from analytics.themes import detect_theme
 from analytics.leads import save_lead
 from agents.orchestrator import orchestrate
 
 init_db()
+init_leads_table()
 
 if "mode" not in st.session_state:
     st.session_state.mode = "chat"
@@ -137,7 +138,7 @@ if st.session_state.mode == "chat":
 def show_chat():
     st.markdown('<div class="chat-wrapper">', unsafe_allow_html=True)
 
-    # messages
+    # ================== MESSAGES ==================
     st.markdown('<div class="chat-messages">', unsafe_allow_html=True)
     for msg in st.session_state.messages:
         cls = "msg-user" if msg["role"] == "user" else "msg-bot"
@@ -147,47 +148,42 @@ def show_chat():
         )
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # input
+    # ================== INPUT ==================
     with st.form("chat_form", clear_on_submit=True):
         user_input = st.text_input("", placeholder="Posez votre question…")
         sent = st.form_submit_button("➜")
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # ========== LOGIC ==========
+    # ================== LOGIC ==================
     if sent and user_input:
-        # 1️⃣ message user
+        # Message utilisateur
         st.session_state.messages.append({
             "role": "user",
             "content": user_input
         })
-        # 2️⃣ ORCHESTRATION
-        decision = orchestrate(user_input, st.session_state)
+
+        # ORCHESTRATOR (multi-agents)
+        with st.spinner("Analyse de votre demande..."):
+            decision = orchestrate(user_input, st.session_state)
+
         st.session_state.last_intent = decision["intent"]
 
-        # 3️⃣ ACTIONS SELON L’INTENT
+        # SWITCH CONTACT
         if decision["action"] == "switch_to_contact":
             st.session_state.mode = "contact"
             st.rerun()
 
-        if decision["action"] == "ask_clarification":
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": decision["message"]
-            })
-            st.rerun()
+        # RÉPONSE (RAG ou clarification)
+        answer = decision["answer"]
+        rag_results = decision.get("rag_results", {
+            "sources": [],
+            "similarities": []
+        })
 
-        # 4️⃣ SINON → RAG (factuel)
-        with st.spinner("Recherche dans les documents ESILV..."):
-            result = answer_with_rag(user_input)
-
-        answer = result["answer"]   # ✅ FIX
-
+        # LOGGING (centralisé, propre)
         theme = detect_theme(user_input)
-        rag_results = {
-            "similarities": result.get("similarities", []),
-            "sources": result.get("sources", [])
-        }
+
         log_interaction(
             user_id=st.session_state.user_id,
             session_id=st.session_state.session_id,
@@ -197,12 +193,14 @@ def show_chat():
             response=answer
         )
 
-        if result["sources"]:
+        # AFFICHAGE DES SOURCES (si présentes)
+        if rag_results["sources"]:
             answer += "<br><br><small><b>Sources :</b><br>"
-            for s in result["sources"]:
+            for s in rag_results["sources"]:
                 answer += f"- {s}<br>"
             answer += "</small>"
 
+        # Message assistant
         st.session_state.messages.append({
             "role": "assistant",
             "content": answer
@@ -260,8 +258,8 @@ def show_contact_form():
                 first_name=first_name,
                 last_name=last_name,
                 email=email,
-                level=level,
-                interests=interests,
+                study_level=level,
+                interests=", ".join(interests) if interests else None,
                 consent=consent,
                 newsletter=newsletter
             )

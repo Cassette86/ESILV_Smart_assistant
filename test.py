@@ -1,6 +1,7 @@
 from rag.retrieval import retrieve_chunks
 from llm.ollama_client import generate
 from rag.service import answer_with_rag
+from analytics.db import get_db
 
 def test_retrieval():
     query = "Qu'est-ce que le cycle ingénieur à l'ESILV ?"
@@ -39,7 +40,29 @@ def test_all():
     for s in response["sources"]:
         print("-", s)
 
+def test_db():
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT
+        query,
+        confidence_score,
+        retrieved_docs,
+        avg_similarity,
+        max_similarity,
+        used_sources
+    FROM interactions
+    ORDER BY timestamp DESC
+    LIMIT 5
+    """)
+    for row in cur.fetchall():
+        print(row)
+
+    conn.close()
+
 if __name__ == "__main__":
     #test_retrieval()
     #test_llm()
-    test_all()
+    #test_all()
+    test_db()

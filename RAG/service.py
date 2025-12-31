@@ -2,7 +2,7 @@
 Service RAG : (1) retrieval -> (2) construction du prompt -> (3) génération LLM -> (4) retour réponse + sources
 """
 
-from rag.retrieval import retrieve_chunks
+from agents.retrieval_agent import retrieve_context
 from llm.ollama_client import generate
 
 
@@ -33,23 +33,13 @@ RÉPONSE :
 
 
 def answer_with_rag(question: str, k: int = 5) -> dict:
-    contexts = retrieve_chunks(question, k=k)
-    prompt = build_prompt(question, contexts)
+    retrieval = retrieve_context(question, k=k)
+
+    prompt = build_prompt(question, retrieval["contexts"])
     answer = generate(prompt)
 
-    # sources uniques (sans doublons)
-    sources = []
-    seen = set()
-    for c in contexts:
-        s = c["source"]
-        if s not in seen:
-            sources.append(s)
-            seen.add(s)
-
     return {
-        "answer": answer                            ,
-        "sources": sources,                                         
-        "contexts": contexts
+        "answer": answer,
+        "sources": retrieval["sources"],
+        "similarities": retrieval["similarities"]
     }
-
-
