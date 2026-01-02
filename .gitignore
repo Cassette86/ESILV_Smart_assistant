@@ -1,19 +1,71 @@
+# ======================
+# Python
+# ======================
 __pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.env
+.venv/
+venv/
+ENV/
+env/
+
+# ======================
+# Jupyter
+# ======================
+.ipynb_checkpoints/
+
+# ======================
+# OS / Editor
+# ======================
+.DS_Store
+.vscode/
+.idea/
+
+# ======================
+# Logs
+# ======================
+*.log
+
+# ======================
+# Data (RAG / ingestion)
+# ======================
 data/raw/
 data/processed/
-ingestion/__pycache__/
-venv/
-.env
-.ipynb_checkpoints/
-.venv/
-# Ignore les fichiers générés automatiquement
-data/processed/
 data/chunks.jsonl
-data/index/
+data/chroma/
 
-# Ignore les cache Python
-__pycache__/
-*.pyc
+# ======================
+# Vector stores / indexes
+# ======================
+data/chroma/
+data/embeddings/
+*.faiss
+*.idx
 
-# Ignore les fichiers lourds ou temporaires
-.ipynb_checkpoints/
+# ======================
+# Analytics / runtime data
+# ======================
+data/analytics/
+data/reports/
+
+# ======================
+# Models (local LLMs, embeddings)
+# ======================
+models/
+.cache/
+.cache-huggingface/
+.cache/torch/
+
+# ======================
+# Streamlit
+# ======================
+.streamlit/secrets.toml
+
+# ======================
+# Temporary / debug files
+# ======================
+tmp/
+debug_*.py
+test_outputs/

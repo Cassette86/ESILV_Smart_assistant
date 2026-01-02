@@ -33,41 +33,103 @@ import os
 from pypdf import PdfReader
 
 RAW_DIR = "data/raw"
+WEB_DIR = "data/raw/web"
+PDF_DIR = "data/raw/brochures"
 PROCESSED_DIR = "data/processed"
+
+NAVIGATION_KEYWORDS = [
+    "menu",
+    "admissions",
+    "presse",
+    "agenda",
+    "close",
+    "journées portes ouvertes",
+    "vie étudiante",
+    "formations",
+    "candidature",
+    "pratique",
+    "accès",
+    "campus"
+]
 
 def extract_text_from_pdf(pdf_path):
     reader = PdfReader(pdf_path)
     text = ""
     for page in reader.pages:
-        text += page.extract_text() + "\n"
+        page_text = page.extract_text()
+        if page_text:
+            text += page_text + "\n"
     return text
 
 def clean_text(text):
-    text = text.replace("\t", " ")
-    text = text.replace("  ", " ")
-    lines = [line.strip() for line in text.split("\n") if line.strip() != ""]
-    return "\n".join(lines)
+    cleaned_lines = []
+
+    for line in text.split("\n"):
+        line = line.strip()
+
+        # skip empty
+        if not line:
+            continue
+
+        # skip navigation/menu lines
+        if any(keyword in line.lower() for keyword in NAVIGATION_KEYWORDS):
+            continue
+
+        # skip very short lines (menu items, noise)
+        if len(line) < 40:
+            continue
+
+        cleaned_lines.append(line)
+
+    # 🔽 DÉDUPLICATION : À FAIRE ICI, EN DEHORS DE LA BOUCLE
+    seen = set()
+    unique_lines = []
+    for line in cleaned_lines:
+        if line not in seen:
+            unique_lines.append(line)
+            seen.add(line)
+
+    return "\n".join(unique_lines)
 
 
 def save_text_file(filename, content):
-    output_path = os.path.join(PROCESSED_DIR, filename.replace(".pdf", ".txt"))
+    output_path = os.path.join(PROCESSED_DIR, filename)
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(content)
 
-def main():
-    os.makedirs(PROCESSED_DIR, exist_ok=True)
-
-    for filename in os.listdir(RAW_DIR):
+def process_pdfs():
+    for filename in os.listdir(PDF_DIR):
         if filename.endswith(".pdf"):
-            pdf_path = os.path.join(RAW_DIR, filename)
-            print(f"[INFO] Extracting {filename}...")
+            pdf_path = os.path.join(PDF_DIR, filename)
+            print(f"[INFO] Extracting PDF {filename}...")
 
-            #text = extract_text_from_pdf(pdf_path)
-            text = clean_text(extract_text_from_pdf(pdf_path))
+            raw_text = extract_text_from_pdf(pdf_path)
+            text = clean_text(raw_text)
 
+            save_text_file(filename.replace(".pdf", ".txt"), text)
+            print(f"[OK] Saved PDF -> {filename.replace('.pdf', '.txt')}")
+
+def process_web_pages():
+    for filename in os.listdir(WEB_DIR):
+        if filename.endswith(".txt"):
+            txt_path = os.path.join(WEB_DIR, filename)
+            print(f"[INFO] Processing web page {filename}...")
+
+            with open(txt_path, "r", encoding="utf-8") as f:
+                raw_text = f.read()
+
+            text = clean_text(raw_text)
             save_text_file(filename, text)
 
-            print(f"[OK] Saved: {filename.replace('.pdf', '.txt')}")
+            print(f"[OK] Saved WEB -> {filename}")
+
+def extract_all_texts():
+    os.makedirs(PROCESSED_DIR, exist_ok=True)
+
+    process_pdfs()
+    process_web_pages()
+
+    print("[DONE] All documents processed successfully.")
 
 if __name__ == "__main__":
-    main()
+    extract_all_texts()

@@ -1,0 +1,13 @@
+streamlit
+python-dotenv
+langchain
+langchain-community
+chromadb
+sentence-transformers
+pypdf
+beautifulsoup4
+requests
+ollama
+tiktoken
+pandas
+numpy

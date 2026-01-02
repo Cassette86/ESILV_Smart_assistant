@@ -1,8 +1,26 @@
 import streamlit as st
-import base64
+import base64 # for image encoding
+from rag.service import answer_with_rag
+import uuid
+#================== ANALYTICS ==================
+from analytics.db import init_db, init_leads_table
+from analytics.logger import log_interaction
+from analytics.themes import detect_theme
+from analytics.leads import save_lead
+from agents.orchestrator import orchestrate
+
+init_db()
+init_leads_table()
+
+if "mode" not in st.session_state:
+    st.session_state.mode = "chat"
+
+if "contact_data" not in st.session_state:
+    st.session_state.contact_data = {}
 
 st.set_page_config(page_title="ESILV Chatbot", layout="centered")
 
+# ================== IMAGE TO BASE64 ==================
 def img_to_base64(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
@@ -17,7 +35,7 @@ st.markdown("""
 }
 
 /* -------- Header -------- */
-.chat-header {
+.chat-header { 
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -93,6 +111,13 @@ st.markdown("""
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# ================== USER / SESSION IDS ==================
+if "user_id" not in st.session_state:
+    st.session_state.user_id = str(uuid.uuid4())
+
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
+
 # ================== HEADER ==================
 st.markdown(f"""
 <div class="chat-header">
@@ -103,34 +128,148 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ================== MESSAGES + INPUT ==================
-st.markdown('<div class="chat-wrapper">', unsafe_allow_html=True)
 
-# messages
-st.markdown('<div class="chat-messages">', unsafe_allow_html=True)
-for msg in st.session_state.messages:
-    cls = "msg-user" if msg["role"] == "user" else "msg-bot"
-    st.markdown(
-        f'<div class="{cls}">{msg["content"]}</div>',
-        unsafe_allow_html=True
+
+if st.session_state.mode == "chat":
+    if st.button("📩 Je souhaite être recontacté"):
+        st.session_state.mode = "contact"
+        st.rerun()
+
+def show_chat():
+    st.markdown('<div class="chat-wrapper">', unsafe_allow_html=True)
+
+    # ================== MESSAGES ==================
+    st.markdown('<div class="chat-messages">', unsafe_allow_html=True)
+    for msg in st.session_state.messages:
+        cls = "msg-user" if msg["role"] == "user" else "msg-bot"
+        st.markdown(
+            f'<div class="{cls}">{msg["content"]}</div>',
+            unsafe_allow_html=True
+        )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # ================== INPUT ==================
+    with st.form("chat_form", clear_on_submit=True):
+        user_input = st.text_input("", placeholder="Posez votre question…")
+        sent = st.form_submit_button("➜")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # ================== LOGIC ==================
+    if sent and user_input:
+        # Message utilisateur
+        st.session_state.messages.append({
+            "role": "user",
+            "content": user_input
+        })
+
+        # ORCHESTRATOR (multi-agents)
+        with st.spinner("Analyse de votre demande..."):
+            decision = orchestrate(user_input, st.session_state)
+
+        st.session_state.last_intent = decision["intent"]
+
+        # SWITCH CONTACT
+        if decision["action"] == "switch_to_contact":
+            st.session_state.mode = "contact"
+            st.rerun()
+
+        # RÉPONSE (RAG ou clarification)
+        answer = decision["answer"]
+        rag_results = decision.get("rag_results", {
+            "sources": [],
+            "similarities": []
+        })
+
+        # LOGGING (centralisé, propre)
+        theme = detect_theme(user_input)
+
+        log_interaction(
+            user_id=st.session_state.user_id,
+            session_id=st.session_state.session_id,
+            query=user_input,
+            theme=theme,
+            rag_results=rag_results,
+            response=answer
+        )
+
+        # AFFICHAGE DES SOURCES (si présentes)
+        if rag_results["sources"]:
+            answer += "<br><br><small><b>Sources :</b><br>"
+            for s in rag_results["sources"]:
+                answer += f"- {s}<br>"
+            answer += "</small>"
+
+        # Message assistant
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": answer
+        })
+
+        st.rerun()
+
+
+def show_contact_form():
+    st.button("⬅️ Retour à la discussion",
+              on_click=lambda: st.session_state.update({"mode": "chat"}))
+
+    st.subheader("📩 Demande de contact")
+
+    # Niveau
+    level = st.radio(
+        "Niveau d’étude",
+        ["L1", "L2", "L3", "M1", "M2", "Autre"],
+        horizontal=True
     )
-st.markdown('</div>', unsafe_allow_html=True)
 
-# input (UN SEUL FORMULAIRE)
-with st.form("chat_form", clear_on_submit=True):
-    user_input = st.text_input("", placeholder="Posez votre question…")
-    sent = st.form_submit_button("➜")
+    # Identité
+    col1, col2 = st.columns(2)
+    with col1:
+        first_name = st.text_input("Prénom")
+    with col2:
+        last_name = st.text_input("Nom")
 
-st.markdown('</div>', unsafe_allow_html=True)
+    email = st.text_input("Email")
 
-# ================== LOGIC ==================
-if sent and user_input:
-    st.session_state.messages.append({
-        "role": "user",
-        "content": user_input
-    })
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
-    })
-    st.rerun()
+    interests = st.multiselect(
+        "Domaines d’intérêt (facultatif)",
+        [
+            "IA", "Data", "Cybersécurité",
+            "Finance", "Industrie", "International"
+        ]
+    )
+
+    consent = st.checkbox(
+        "J’accepte que mes données soient utilisées pour être recontacté(e) (obligatoire)"
+    )
+
+    newsletter = st.checkbox(
+        "Je souhaite recevoir la newsletter ESILV (facultatif)"
+    )
+
+    if st.button("Envoyer ma demande"):
+        if not consent:
+            st.error("Le consentement est obligatoire.")
+        elif not email or not first_name or not last_name:
+            st.error("Merci de remplir tous les champs obligatoires.")
+        else:
+            save_lead(
+                user_id=st.session_state.user_id,
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                study_level=level,
+                interests=", ".join(interests) if interests else None,
+                consent=consent,
+                newsletter=newsletter
+            )
+
+            st.success("Votre demande a bien été envoyée. Nous vous recontacterons.")
+            st.session_state.mode = "chat"
+            st.rerun()
+
+# ================== MAIN ROUTER ==================
+if st.session_state.mode == "chat":
+    show_chat()
+elif st.session_state.mode == "contact":
+    show_contact_form()
