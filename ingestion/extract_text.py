@@ -126,7 +126,7 @@ def process_web_pages():
 def extract_all_texts():
     os.makedirs(PROCESSED_DIR, exist_ok=True)
 
-    process_pdfs()
+    #process_pdfs()
     process_web_pages()
 
     print("[DONE] All documents processed successfully.")
