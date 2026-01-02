@@ -90,6 +90,15 @@ All tools and models used are **open-source or academic-friendly**, in complianc
 │   ├── chroma/             # Vector database
 │   └── chunks.jsonl        # Chunked documents
 │
+├── notebooks/              # Evaluation notebooks
+│   └── evaluation.ipynb    # Notebook demonstrating query examples, accuracy metrics, and latency plots
+│
+├── llm/                    # LLM clients and wrappers
+│   └── ollama_client.py    # Local LLM inference client
+│
+├── pages/                  # Streamlit page modules
+│   └── 1_Admin.py
+│
 ├── assets/                 # UI assets and branding
 ├── requirements.txt
 ├── README.md

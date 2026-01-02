@@ -10,7 +10,7 @@ def detect_intent(user_input: str) -> str:
     text = user_input.lower()
 
     if any(k in text for k in [
-        "recontact", "contact", "inscription", "être appelé", "rappel"
+        "recontact", "contact", "être appelé", "rappel"
     ]):
         return "contact"
 
