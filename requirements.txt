@@ -1,0 +1,12 @@
+streamlit
+numpy
+pandas
+scikit-learn
+matplotlib
+seaborn
+deap
+modAL
+chromadb
+python-dotenv
+requests
+pillow
