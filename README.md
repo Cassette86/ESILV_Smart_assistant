@@ -1,141 +1,164 @@
+# ESILV Smart Assistant  
+### RAG-based Multi-Agent Academic Chatbot
 
-# ESILV Smart Assistant
+## Project Overview
 
-Description
------------
+The **ESILV Smart Assistant** is a conversational academic assistant designed to help students access reliable and up-to-date institutional information.  
+The system is based on a **Retrieval-Augmented Generation (RAG)** architecture and leverages a **multi-agent design** to provide accurate, document-grounded answers while minimizing hallucinations.
 
-ESILV Smart Assistant is a prototype conversational assistant developed as a university project. It combines a Retrieval-Augmented Generation (RAG) system to answer factual questions from a document collection with specialized agents (orchestrator, retrieval, answer) to manage the dialogue. The project also includes an ML experiment pipeline in the notebook `Projet_ML.ipynb` demonstrating a genetic programming workflow (DEAP) coupled with active learning and ensemble learning for a classification task (dataset `atlas-higgs.csv`).
+This project was developed as part of the **LLM and Generative AI** course at **ESILV (2025–2026)**.
 
-Key points
-----------
+---
 
-- Web interface: Streamlit application (`app.py`) providing the chatbot UI.
-- Agent architecture: see `agents/` (orchestrator, retrieval_agent, answer_agent).
-- RAG: modules under `rag/` (context retrieval, answer service).
-- ML experiments: notebook `Projet_ML.ipynb` (preprocessing, GP via DEAP, active learning, ensemble).
-- Analytics & tracking: `analytics/` (DB, logging, leads, metrics).
+## Objectives
 
-Repository structure
---------------------
+- Provide an intelligent assistant for querying ESILV institutional documents
+- Reduce hallucinations through document-grounded generation
+- Implement a complete and reproducible RAG pipeline
+- Support both local and cloud-based LLM inference
+- Offer analytics and evaluation tools for system monitoring
 
-- `app.py`: Streamlit app (UI, routing, agents integration).
-- `agents/`: orchestrator, retrieval and answer agents.
-- `rag/`: RAG components (retrieval, answer service).
-- `llm/`: LLM client (e.g., `ollama_client.py`).
-- `ingestion/`, `data/`, `processed/`: scripts and files for ingestion and data preparation.
-- `analytics/`: utilities for metrics collection, logging and lead handling.
-- `notebooks/` and `Projet_ML.ipynb`: ML experimentation notebook.
+---
 
-Main dependencies
------------------
+## System Architecture
 
-The project uses (non-exhaustive):
+The system follows a modular, layered architecture:
 
-- Python >= 3.8
-- `streamlit` (UI)
-- `numpy`, `pandas`, `scikit-learn` (preprocessing, metrics)
-- `matplotlib`, `seaborn`
-- `deap` (genetic programming)
-- `modAL` (active learning)
-- `chromadb` / other indexing systems if you use a vector DB for RAG (optional)
+- **User Interface**: Streamlit web application
+- **Multi-Agent Orchestration**:
+  - Orchestrator Agent
+  - Retrieval Agent
+  - Answer Generation Agent
+- **RAG Pipeline**:
+  - Document ingestion
+  - Text cleaning and chunking
+  - Embedding generation
+  - Vector indexing (ChromaDB)
+  - Similarity-based retrieval
+  - Context-aware answer generation
+- **Analytics Layer**:
+  - Interaction logging
+  - Metrics computation
+  - Theme detection
+  - Automated reporting
 
-A `requirements.txt` file is provided to quickly install the main dependencies.
+---
 
-Installation
-------------
+## Technologies Used
 
-1. Create a virtual environment (recommended):
+- **Python 3.10+**
+- **Streamlit** – User interface
+- **Retrieval-Augmented Generation (RAG)**
+- **ChromaDB** – Vector database
+- **Sentence Transformers** – Text embeddings
+- **Ollama** – Local LLM inference (open-source models)
+- **Google AI SDK (Gemini)** – Optional cloud-based inference
+- **SQLite** – Analytics data storage
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
+All tools and models used are **open-source or academic-friendly**, in compliance with course guidelines.
+
+---
+
+## Repository Structure
+
+```
+.
+├── app.py                  # Streamlit application entry point
+├── agents/                 # Multi-agent orchestration
+│   ├── orchestrator.py
+│   ├── retrieval_agent.py
+│   └── answer_agent.py
+│
+├── ingestion/              # RAG ingestion pipeline
+│   ├── extract_text.py
+│   ├── scraping.py
+│   ├── chunking.py
+│   ├── build_index.py
+│   └── pipeline.py
+│
+├── analytics/              # Evaluation and analytics
+│   ├── db.py
+│   ├── logger.py
+│   ├── metrics.py
+│   ├── themes.py
+│   ├── report.py
+│   └── seed_fake_data.py
+│
+├── data/
+│   ├── raw/                # Raw documents (PDF, web)
+│   ├── processed/          # Cleaned text
+│   ├── chroma/             # Vector database
+│   └── chunks.jsonl        # Chunked documents
+│
+├── assets/                 # UI assets and branding
+├── requirements.txt
+├── README.md
+└── test.py
+``` 
+---
+
+## Installation 
+### 1. Clone repository
+```
+git clone <repository_url>
+cd ESILV_SMART_ASSISTANT
 ```
 
-2. Install dependencies:
-
-```bash
-pip install -r requirements.txt
+### 2.Create a virtual environment 
+```python -m venv .venv
+source .venv/bin/activate   # macOS / Linux
+.venv\Scripts\activate      # Windows
 ```
 
-Notes:
-- Some specific packages (e.g., `deap`, `modAL`) may require additional installation steps. The notebook includes `!pip install ...` cells for `deap` and `modAL`.
+### 3. Install dependencies
+```pip install -r requirements.txt```
 
-Data
-----
+---
 
-The notebook `Projet_ML.ipynb` expects the file `atlas-higgs.csv`. Place this file at the repository root (or adjust the path inside the notebook) before running the cells.
+## Environment Variables
+Create a .env file 
+```
+OLLAMA_MODEL=llama3
+GOOGLE_API_KEY=your_api_key_here
+VECTOR_DB_PATH=data/chroma
+```
 
-Run the Streamlit application
-----------------------------
+---
 
-The chatbot UI is served by `app.py`. To run the app locally:
+## Running the Application
+### 1. Build the vetor database
+```
+python ingestion/pipeline.py
+```
 
-```bash
+### 2.Launch the Streamlit app
+```
 streamlit run app.py
 ```
+The application will be available at:
+http://localhost:8501
 
-The app expects an `assets/` folder containing `chatbot_head.png` (used as the logo), and relies on the `agents` and `rag` modules to generate responses.
+---
 
-Run the ML experiment notebook
------------------------------
+## Analytics and Evaluation
+The system automatically logs user interactions and computes:
+- Response times
+- Query statistics
+- Retrieval usage
+- Thematic distribution of queries
+Analytics data are stored in a local database and can be summarized using automated report generated from the analytics/ module.
 
-The notebook `Projet_ML.ipynb` contains the full experimental pipeline (preprocessing, GP via DEAP, active learning, ensemble). To reproduce the experiments:
+---
 
-1. Install the dependencies (see `requirements.txt`), especially `deap` and `modAL`.
-2. Open the notebook with Jupyter / JupyterLab / VS Code and run the cells in order.
+## Reproducibility
+- All data processing steps are deterministic
+- The vector database can be fully rebuilt from raw documents
+- No proprietary datasets are required 
+- The project runs on a standard Python environment
 
-Note: The notebook samples 10% of the dataset by default to reduce computational cost. Some cells perform inline package installation (`!pip install deap`, `!pip install -q modAL-python`).
+---
 
-Architecture and agents
------------------------
-
-- `agents/orchestrator.py`: detects intent (contact / rag / clarification) and delegates to `retrieval_agent` or `answer_agent`.
-- `agents/retrieval_agent.py`: queries the index/document store to retrieve relevant contexts (sources, similarities).
-- `agents/answer_agent.py`: builds responses using retrieved context (RAG) or returns clarification answers.
-
-RAG & indexing
---------------
-
-The `rag/` submodule contains components for context retrieval and the answer service. Depending on your local setup you can use a vector DB (Chroma, FAISS, etc.) or a simple store.
-
-Analytics / Tracking
---------------------
-
-The `analytics/` folder contains utilities to:
-
-- initialize a SQLite tracking DB (`db.py`),
-- log interactions (`logger.py`),
-- save leads (`leads.py`) and detect the theme of a question (`themes.py`).
-
-Tests
-----
-
-A `test.py` file exists at the repository root for quick tests. Run it with:
-
-```bash
-python test.py
-```
-
-Reproducibility best practices
------------------------------
-
-- Run the notebook and the app in the same Python environment (matching package versions).
-- Install `deap` and `modAL` before executing the corresponding notebook cells.
-- Ensure the dataset `atlas-higgs.csv` is available before running `Projet_ML.ipynb`.
-
-Contributing
-------------
-
-1. Fork the repository
-2. Create a feature branch
-3. Open a Pull Request with a description of changes
-
-Contact
--------
-
-For questions about the project, contact the repository owner or open an issue.
-
-License
--------
-
-Specify the desired license here (e.g., MIT) if applicable.
+## Team
+- Ornella Djuidje Kandem
+- Cassie Doguet
+- Léna Dubois
